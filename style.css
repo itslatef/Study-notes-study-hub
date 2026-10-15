@@ -207,13 +207,13 @@ body {
 }
 
 .icon-btn {
-  height: 44px;
-  border-radius: 12px;
+  height: 36px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: #e5e7eb;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
   justify-content: center;

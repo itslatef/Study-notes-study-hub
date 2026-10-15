@@ -11,10 +11,7 @@ const FOLDER_COLORS = [
   { name: 'Indigo', hex: '#6366f1' }
 ];
 
-const FOLDER_ICONS = [
-  '×÷+', '</>', '∑', '🗄️', '🌐', '⚡',
-  '📊', '🧠', '🔬', '📐', '📝', '🎓'
-];
+const FOLDER_ICONS = ['','</>','{ }','[ ]','()','=>','!=','&&','||','01','10','∑','∫','∏','√','∞','≈','≠','≤','≥','±','×÷+','∂','∆','∇','λ','π','θ','Ω','μ','σ','α','β','γ','∈','∉','⊂','∪','∩','∀','∃','⊢','⊨','⊕','⊗','⊥','∠','💻','🖥️','⌨️','🖱️','🖧','🌐','📡','🔌','🔋','💾','💿','🗄️','📊','📈','📉','📋','📁','📂','🗂️','📄','📑','🔖','📐','📏','🧮','🔬','🔭','🧪','🧫','🧬','⚛️','⚡','🧲','⚙️','🔧','🔨','🛠️','🧱','⛓️','🔒','🔓','🔑','🛡️','🐛','🤖','🧠','💡','🎓','📚','📖','✏️','✒️','📝','🎯'];
 
 const DEFAULT_SYNC_KEY = 'sn-study-hub-itslatef-v1';
 const DB_NAME = 'SamsungNotesStudyHubDB';
@@ -30,7 +27,7 @@ const state = {
   editingFileId: null,
   viewingFileId: null,
   selectedColor: FOLDER_COLORS[1].hex,
-  selectedIcon: FOLDER_ICONS[0],
+  selectedIcon: '',
   syncKey: new URLSearchParams(location.search).get('sync') || localStorage.getItem('sn_sync_key') || DEFAULT_SYNC_KEY,
   firebaseUrl: localStorage.getItem('sn_firebase_url') || '',
   lastCloudKey: null,
@@ -538,7 +535,7 @@ function renderGrid() {
       if (item.type === 'folder') {
         const count = countDirectChildren(item.id);
         const bg = item.color || '#ff5733';
-        const icon = item.icon || '×÷+';
+        const icon = item.icon ?? '';
 
         return `
           <div class="sn-folder-card" style="background: linear-gradient(145deg, ${bg}, ${bg}dd);" data-open-folder="${item.id}">
@@ -567,8 +564,8 @@ function renderGrid() {
               </div>
             </div>
 
-            <!-- Center Watermark Icon/Symbol -->
-            <div class="sn-folder-watermark">${escapeHtml(icon)}</div>
+            <!-- Optional Center Watermark Icon/Symbol -->
+            ${icon ? `<div class="sn-folder-watermark">${escapeHtml(icon)}</div>` : ''}
 
             <!-- Bottom-Left Folder Title -->
             <div class="relative z-10 mt-auto pt-6">
@@ -649,13 +646,17 @@ function renderFolderPickers() {
     ></button>
   `).join('');
 
-  iconGrid.innerHTML = FOLDER_ICONS.map(sym => `
-    <button
-      type="button"
-      data-pick-icon="${escapeHtml(sym)}"
-      class="icon-btn ${state.selectedIcon === sym ? 'selected' : ''}"
-    >${escapeHtml(sym)}</button>
-  `).join('');
+  iconGrid.innerHTML = FOLDER_ICONS.map(sym => {
+    const isNone = sym === '';
+    return `
+      <button
+        type="button"
+        title="${isNone ? 'No Icon' : escapeHtml(sym)}"
+        data-pick-icon="${escapeHtml(sym)}"
+        class="icon-btn ${isNone ? 'col-span-2 text-xs' : 'text-xs'} ${state.selectedIcon === sym ? 'selected' : ''}"
+      >${isNone ? '🚫 None' : escapeHtml(sym)}</button>
+    `;
+  }).join('');
 }
 
 // --- Modals & Viewers ---
@@ -671,12 +672,12 @@ function openFolderModal(folderId = null) {
     title.textContent = 'Edit Folder';
     nameInput.value = folder.name;
     state.selectedColor = folder.color || FOLDER_COLORS[0].hex;
-    state.selectedIcon = folder.icon || FOLDER_ICONS[0];
+    state.selectedIcon = folder.icon ?? '';
   } else {
     title.textContent = 'New Study Folder';
     nameInput.value = '';
     state.selectedColor = FOLDER_COLORS[Math.floor(Math.random() * FOLDER_COLORS.length)].hex;
-    state.selectedIcon = FOLDER_ICONS[0];
+    state.selectedIcon = '';
   }
 
   renderFolderPickers();
@@ -733,14 +734,14 @@ function openViewer(fileId) {
   state.viewingFileId = fileId;
 
   const overlay = document.getElementById('viewerOverlay');
-  const title = document.getElementById('viewerTitle');
   const iframe = document.getElementById('viewerIframe');
 
-  title.textContent = file.name;
   iframe.srcdoc = file.htmlContent;
-
   overlay.classList.remove('hidden');
-  overlay.classList.add('flex');
+
+  if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  }
 }
 
 function closeViewer() {
@@ -748,8 +749,11 @@ function closeViewer() {
   const iframe = document.getElementById('viewerIframe');
   iframe.srcdoc = '';
   overlay.classList.add('hidden');
-  overlay.classList.remove('flex');
   state.viewingFileId = null;
+
+  if (document.fullscreenElement && document.exitFullscreen) {
+    document.exitFullscreen().catch(() => {});
+  }
 }
 
 function toggleFabMenu(forceState) {
@@ -1008,7 +1012,6 @@ async function initApp() {
         file.updatedAt = Date.now();
       }
       if (state.viewingFileId === state.editingFileId) {
-        document.getElementById('viewerTitle').textContent = finalName;
         document.getElementById('viewerIframe').srcdoc = htmlContent;
       }
     } else {
