@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Samsung Notes Study Hub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="bg-[#121212] text-gray-100 h-screen w-screen overflow-hidden flex select-none">
+
+  <!-- Mobile Sidebar Backdrop -->
+  <div id="sidebarBackdrop" class="fixed inset-0 bg-black/60 z-30 hidden md:hidden backdrop-blur-xs"></div>
+
+  <!-- Left Sidebar: Samsung Notes Style + Recursive Folder Tree (شجرة مجلدات) -->
+  <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 w-72 bg-[#1a1a1a] border-r border-white/5 flex flex-col transition-transform duration-200 -translate-x-full md:translate-x-0">
+    <!-- App Brand Header -->
+    <div class="px-5 pt-5 pb-4 flex items-center justify-between border-b border-white/5">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#ff6b4a] to-[#ff3b30] flex items-center justify-center shadow-lg shadow-[#ff6b4a]/20">
+          <i data-lucide="notebook-tabs" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-base tracking-tight text-white leading-none">Study Notes</h1>
+          <span class="text-[11px] text-gray-400">HTML Cloud Workspace</span>
+        </div>
+      </div>
+      <button id="closeSidebarBtn" class="md:hidden p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <!-- Quick Root Navigation -->
+    <div class="px-3 pt-3 pb-2">
+      <div id="navAllRoot" class="tree-row active">
+        <i data-lucide="layout-grid" class="w-4 h-4 text-[#ff6b4a]"></i>
+        <span class="flex-1 truncate">All Notes & Folders</span>
+        <span id="totalItemsBadge" class="text-xs text-gray-400 bg-white/5 px-2 py-0.5 rounded-full">0</span>
+      </div>
+    </div>
+
+    <!-- Folder Tree Section Header -->
+    <div class="px-5 pt-3 pb-1.5 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-gray-400">
+      <span>Folders</span>
+      <span class="font-normal text-[11px] text-gray-400">شجرة مجلدات</span>
+    </div>
+
+    <!-- Recursive Collapsible Folder Tree Container -->
+    <div id="folderTree" class="flex-1 overflow-y-auto px-3 py-1 space-y-0.5"></div>
+
+    <!-- Cloud Sync Status Footer -->
+    <div class="p-3 border-t border-white/5 bg-black/20">
+      <button id="cloudConfigBtn" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 transition">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <span id="syncDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0"></span>
+          <div class="text-left truncate">
+            <div id="syncStatusText" class="text-xs font-medium text-gray-200 truncate">Cloud Synced</div>
+            <div id="syncKeyLabel" class="text-[10px] text-gray-400 truncate">Key: default</div>
+          </div>
+        </div>
+        <i data-lucide="cloud-cog" class="w-4 h-4 text-gray-400 shrink-0"></i>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Workspace Area (#121212) -->
+  <main class="flex-1 flex flex-col h-full bg-[#121212] overflow-hidden relative">
+    <!-- Top Header & Breadcrumb Bar -->
+    <header class="px-4 md:px-8 py-4 border-b border-white/5 flex flex-wrap items-center justify-between gap-3 bg-[#121212]/90 backdrop-blur-md z-10">
+      <div class="flex items-center gap-2 min-w-0 flex-1">
+        <button id="openSidebarBtn" class="md:hidden p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-200">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+        <!-- Breadcrumb Navigation -->
+        <nav id="breadcrumbBar" class="flex items-center gap-1.5 overflow-x-auto py-1 text-sm font-medium text-gray-300 no-scrollbar"></nav>
+      </div>
+
+      <!-- Search & Sync Actions -->
+      <div class="flex items-center gap-2.5">
+        <div class="relative">
+          <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          <input
+            id="searchInput"
+            type="text"
+            placeholder="Search folders & HTML..."
+            class="w-44 sm:w-60 pl-9 pr-3 py-2 rounded-xl bg-[#1e1e1e] border border-white/10 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#ff6b4a]"
+          />
+        </div>
+        <button id="manualSyncBtn" title="Sync Now" class="p-2 rounded-xl bg-[#1e1e1e] hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white transition">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Grid Content Area -->
+    <section class="flex-1 overflow-y-auto px-4 md:px-8 py-6 pb-28">
+      <!-- Empty State -->
+      <div id="emptyState" class="hidden h-full min-h-[340px] flex flex-col items-center justify-center text-center max-w-md mx-auto">
+        <div class="w-20 h-20 rounded-3xl bg-white/[0.04] border border-white/10 flex items-center justify-center mb-4 text-gray-500">
+          <i data-lucide="folder-open" class="w-10 h-10"></i>
+        </div>
+        <h2 class="text-lg font-semibold text-gray-200 mb-1">This folder is empty</h2>
+        <p class="text-sm text-gray-400 mb-6">Tap the <span class="text-[#ff6b4a] font-bold">+</span> button at the bottom right to create a custom study folder or paste an HTML file.</p>
+      </div>
+
+      <!-- Unified Responsive Samsung Notes Grid -->
+      <div id="itemsGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-5"></div>
+    </section>
+
+    <!-- Floating Action Button (+) & Action Menu -->
+    <div class="fixed bottom-6 right-6 z-30 flex flex-col items-end gap-3">
+      <!-- FAB Speed-Dial Options -->
+      <div id="fabMenu" class="hidden flex-col items-end gap-2.5 fab-menu-enter">
+        <button id="fabNewFileBtn" class="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#252525] hover:bg-[#2f2f2f] text-white border border-white/15 shadow-2xl transition">
+          <span class="text-sm font-semibold">New HTML File</span>
+          <div class="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center">
+            <i data-lucide="file-code-2" class="w-5 h-5"></i>
+          </div>
+        </button>
+        <button id="fabNewFolderBtn" class="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#252525] hover:bg-[#2f2f2f] text-white border border-white/15 shadow-2xl transition">
+          <span class="text-sm font-semibold">New Folder</span>
+          <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+            <i data-lucide="folder-plus" class="w-5 h-5"></i>
+          </div>
+        </button>
+      </div>
+
+      <!-- Main (+) Button -->
+      <button
+        id="fabMainBtn"
+        aria-label="Create New Item"
+        class="w-14 h-14 rounded-full bg-gradient-to-tr from-[#ff5733] to-[#ff7b54] hover:brightness-110 active:scale-95 text-white shadow-2xl shadow-[#ff5733]/40 flex items-center justify-center transition-transform duration-200"
+      >
+        <i id="fabIcon" data-lucide="plus" class="w-7 h-7 transition-transform duration-200"></i>
+      </button>
+    </div>
+  </main>
+
+  <!-- MODAL 1: Create / Edit Folder (10 Vibrant Colors + 12 Academic Symbols) -->
+  <div id="folderModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-[#1e1e1e] border border-white/10 rounded-3xl w-full max-w-md p-6 shadow-2xl">
+      <div class="flex items-center justify-between mb-5">
+        <h3 id="folderModalTitle" class="text-lg font-bold text-white">New Study Folder</h3>
+        <button id="closeFolderModalBtn" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="folderForm" class="space-y-5">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Folder Name</label>
+          <input
+            id="folderNameInput"
+            type="text"
+            required
+            placeholder="e.g., Linear Algebra, Web Dev, Databases..."
+            class="w-full px-4 py-3 rounded-xl bg-[#141414] border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-[#ff6b4a]"
+          />
+        </div>
+
+        <!-- 10 Vibrant Colors -->
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2.5">Folder Color (10 Presets)</label>
+          <div id="colorPickerGrid" class="grid grid-cols-5 gap-3 place-items-center py-1"></div>
+        </div>
+
+        <!-- 12 Academic Symbols / Icons -->
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2.5">Watermark Symbol (12 Icons)</label>
+          <div id="iconPickerGrid" class="grid grid-cols-4 gap-2.5"></div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2.5 pt-2">
+          <button type="button" id="cancelFolderBtn" class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm font-medium text-gray-300">Cancel</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#ff6b4a] hover:bg-[#ff5733] text-sm font-semibold text-white shadow-lg shadow-[#ff6b4a]/25">Save Folder</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Single-Entity HTML File Creation & Auto-Naming -->
+  <div id="fileModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-[#1e1e1e] border border-white/10 rounded-3xl w-full max-w-2xl p-6 shadow-2xl flex flex-col max-h-[90vh]">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 id="fileModalTitle" class="text-lg font-bold text-white">New HTML Study File</h3>
+          <p class="text-xs text-gray-400">Paste your HTML code below. Title is auto-extracted from <code class="text-amber-300">&lt;title&gt;</code> or <code class="text-amber-300">&lt;h1&gt;</code>.</p>
+        </div>
+        <button id="closeFileModalBtn" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="fileForm" class="flex-1 flex flex-col gap-4 overflow-hidden">
+        <!-- Auto-detected title preview + optional override -->
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 bg-[#141414] px-3.5 py-2.5 rounded-xl border border-white/10">
+          <div class="flex items-center gap-2 text-xs text-gray-400 shrink-0">
+            <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+            <span>Auto-Title:</span>
+            <span id="detectedTitleBadge" class="font-semibold text-amber-300 truncate max-w-[180px]">Untitled HTML Note</span>
+          </div>
+          <input
+            id="fileTitleOverrideInput"
+            type="text"
+            placeholder="Optional title override..."
+            class="flex-1 bg-transparent text-sm text-white placeholder-gray-500 focus:outline-none sm:border-l sm:border-white/10 sm:pl-3"
+          />
+        </div>
+
+        <!-- Code Textarea -->
+        <textarea
+          id="htmlCodeInput"
+          required
+          placeholder="<!DOCTYPE html>\n<html>\n<head><title>Chapter 1: Matrices</title></head>\n<body>\n  <h1>Matrix Operations</h1>\n</body>\n</html>"
+          class="flex-1 min-h-[280px] w-full p-4 rounded-2xl bg-[#121212] border border-white/10 font-mono text-xs sm:text-sm text-emerald-300 placeholder-gray-600 focus:outline-none focus:border-[#ff6b4a] resize-none"
+        ></textarea>
+
+        <div class="flex items-center justify-end gap-2.5">
+          <button type="button" id="cancelFileBtn" class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm font-medium text-gray-300">Cancel</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#ff6b4a] hover:bg-[#ff5733] text-sm font-semibold text-white shadow-lg shadow-[#ff6b4a]/25">Save HTML File</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 3: Cloud Sync Configuration (Cross-Device Sync Key & Optional Firebase URL) -->
+  <div id="cloudModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-[#1e1e1e] border border-white/10 rounded-3xl w-full max-w-md p-6 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2.5">
+          <i data-lucide="cloud" class="w-5 h-5 text-[#ff6b4a]"></i>
+          <h3 class="text-lg font-bold text-white">Cloud Sync Settings</h3>
+        </div>
+        <button id="closeCloudModalBtn" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="cloudForm" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Cloud Sync Room Key</label>
+          <input
+            id="syncKeyInput"
+            type="text"
+            required
+            placeholder="e.g., itslatef-study-hub"
+            class="w-full px-3.5 py-2.5 rounded-xl bg-[#141414] border border-white/10 text-sm text-white focus:outline-none focus:border-[#ff6b4a]"
+          />
+          <p class="text-[11px] text-gray-400 mt-1">Devices with the same URL or Sync Key automatically sync folders & HTML files in real time.</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Optional Firebase Realtime DB URL</label>
+          <input
+            id="firebaseUrlInput"
+            type="url"
+            placeholder="https://your-project-default-rtdb.firebaseio.com"
+            class="w-full px-3.5 py-2.5 rounded-xl bg-[#141414] border border-white/10 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#ff6b4a]"
+          />
+          <p class="text-[11px] text-gray-400 mt-1">Leave blank to use the built-in Zero-Config Cloud KV + Real-time SSE Sync.</p>
+        </div>
+
+        <div class="flex items-center justify-between pt-2">
+          <button type="button" id="copyShareUrlBtn" class="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-medium text-amber-300">
+            <i data-lucide="link" class="w-3.5 h-3.5"></i>
+            <span>Copy Sync URL</span>
+          </button>
+          <div class="flex items-center gap-2">
+            <button type="button" id="cancelCloudBtn" class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm font-medium text-gray-300">Close</button>
+            <button type="submit" class="px-4 py-2.5 rounded-xl bg-[#ff6b4a] hover:bg-[#ff5733] text-sm font-semibold text-white">Save & Sync</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- FULL-SCREEN ISOLATED HTML VIEWER OVERLAY -->
+  <div id="viewerOverlay" class="fixed inset-0 z-50 bg-[#121212] hidden flex-col">
+    <div class="h-14 px-4 bg-[#1a1a1a] border-b border-white/10 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <button id="viewerBackBtn" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm font-medium text-white transition">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
+          <span>Back</span>
+        </button>
+        <h2 id="viewerTitle" class="font-semibold text-sm sm:text-base text-white truncate">Document</h2>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="viewerEditBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs sm:text-sm font-medium text-sky-300 transition">
+          <i data-lucide="code-2" class="w-4 h-4"></i>
+          <span>Edit Code</span>
+        </button>
+        <button id="viewerDeleteBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-xs sm:text-sm font-medium text-rose-300 transition">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+          <span>Delete</span>
+        </button>
+      </div>
+    </div>
+    <iframe
+      id="viewerIframe"
+      class="flex-1 w-full bg-white border-0"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+    ></iframe>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

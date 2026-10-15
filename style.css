@@ -1,0 +1,249 @@
+:root {
+  --bg-main: #121212;
+  --bg-sidebar: #1a1a1a;
+  --bg-card: #222222;
+  --bg-modal: #1e1e1e;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --accent: #ff6b4a;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-main);
+  color: #f3f4f6;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* Samsung Notes Folder Card */
+.sn-folder-card {
+  position: relative;
+  aspect-ratio: 1 / 0.94;
+  border-radius: 22px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.18s ease, filter 0.18s ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.36), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+}
+
+.sn-folder-card:hover {
+  transform: translateY(-4px) scale(1.015);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+  filter: brightness(1.04);
+}
+
+.sn-folder-card:active {
+  transform: scale(0.98);
+}
+
+/* Signature Top-Right Samsung Notes Folder Notch & Tab Cutout */
+.sn-folder-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 42%;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.22);
+  border-bottom-left-radius: 16px;
+  pointer-events: none;
+}
+
+.sn-folder-card::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  right: 12px;
+  width: 26%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+/* Center Watermark Symbol */
+.sn-folder-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 3.6rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: rgba(0, 0, 0, 0.22);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+  white-space: nowrap;
+  line-height: 1;
+  z-index: 1;
+  transition: transform 0.22s ease;
+}
+
+.sn-folder-card:hover .sn-folder-watermark {
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+/* File Card */
+.sn-file-card {
+  position: relative;
+  aspect-ratio: 1 / 0.94;
+  border-radius: 22px;
+  background: #1e1e1e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.18s ease, box-shadow 0.18s ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+}
+
+.sn-file-card:hover {
+  transform: translateY(-4px) scale(1.015);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.48);
+}
+
+.sn-file-preview-wrap {
+  position: relative;
+  flex: 1;
+  background: #ffffff;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.sn-file-preview-iframe {
+  width: 400%;
+  height: 400%;
+  border: 0;
+  transform: scale(0.25);
+  transform-origin: top left;
+  pointer-events: none;
+  background: #ffffff;
+}
+
+/* Card Action Buttons */
+.sn-card-actions {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.sn-folder-card:hover .sn-card-actions,
+.sn-file-card:hover .sn-card-actions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .sn-card-actions {
+    opacity: 1;
+  }
+}
+
+/* Sidebar Tree Item */
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  font-size: 0.875rem;
+  color: #d1d5db;
+}
+
+.tree-row:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.tree-row.active {
+  background-color: rgba(255, 255, 255, 0.13);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Color Swatches & Icon Pickers */
+.swatch-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.swatch-btn.selected {
+  transform: scale(1.16);
+  border-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+}
+
+.icon-btn {
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
+  font-weight: 700;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.icon-btn.selected {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: #ffffff;
+  color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
+}
+
+/* Floating Action Button Menu */
+.fab-menu-enter {
+  animation: fabPop 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fabPop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
