@@ -577,7 +577,8 @@ function renderGrid() {
         `;
       }
 
-      // File Card
+      // File Card with 3-dots (...) menu for Edit Code & Delete
+      const menuOpen = state.openMenuFileId === item.id;
       return `
         <div class="sn-file-card group" data-open-file="${item.id}">
           <div class="sn-file-preview-wrap">
@@ -587,23 +588,33 @@ function renderGrid() {
               loading="lazy"
               srcdoc="${escapeHtml(item.htmlContent)}"
             ></iframe>
-            <div class="sn-card-actions absolute top-2.5 right-2.5 flex items-center gap-1 z-10">
+            <div class="absolute top-2.5 right-2.5 z-20">
               <button
                 type="button"
-                title="Edit HTML"
-                data-edit-file="${item.id}"
-                class="w-7 h-7 rounded-full bg-black/65 hover:bg-black/85 text-white flex items-center justify-center backdrop-blur-xs transition"
+                title="More Actions"
+                data-file-menu="${item.id}"
+                class="w-8 h-8 rounded-full bg-black/70 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-xs border border-white/15 transition"
               >
-                <i data-lucide="code-2" class="w-3.5 h-3.5"></i>
+                <i data-lucide="more-vertical" class="w-4 h-4"></i>
               </button>
-              <button
-                type="button"
-                title="Delete HTML File"
-                data-delete-item="${item.id}"
-                class="w-7 h-7 rounded-full bg-black/65 hover:bg-rose-600 text-white flex items-center justify-center backdrop-blur-xs transition"
-              >
-                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-              </button>
+              <div class="${menuOpen ? 'flex' : 'hidden'} flex-col w-36 mt-1.5 right-0 absolute rounded-xl bg-[#222222] border border-white/15 shadow-2xl overflow-hidden z-30">
+                <button
+                  type="button"
+                  data-edit-file="${item.id}"
+                  class="flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-sky-300 hover:bg-white/10 text-left transition"
+                >
+                  <i data-lucide="code-2" class="w-3.5 h-3.5"></i>
+                  <span>Edit Code</span>
+                </button>
+                <button
+                  type="button"
+                  data-delete-item="${item.id}"
+                  class="flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-rose-400 hover:bg-rose-500/20 text-left border-t border-white/5 transition"
+                >
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                  <span>Delete</span>
+                </button>
+              </div>
             </div>
             <span class="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md bg-black/65 backdrop-blur-xs text-[10px] font-semibold text-amber-300 uppercase tracking-wider">
               HTML
@@ -629,6 +640,23 @@ function renderAll() {
   if (window.lucide) {
     window.lucide.createIcons();
   }
+}
+
+// --- Browser History Navigation ---
+function pushHistoryState() {
+  history.pushState({
+    folderId: state.currentFolderId,
+    fileId: state.viewingFileId,
+    modal: state.activeModal || null
+  }, '');
+}
+
+function navigateToFolder(folderId) {
+  if (state.currentFolderId === folderId) return;
+  state.currentFolderId = folderId;
+  if (folderId) expandAncestors(folderId);
+  pushHistoryState();
+  renderAll();
 }
 
 // --- Folder Customization Pickers ---
@@ -662,6 +690,7 @@ function renderFolderPickers() {
 // --- Modals & Viewers ---
 function openFolderModal(folderId = null) {
   state.editingFolderId = folderId;
+  state.openMenuFileId = null;
   const modal = document.getElementById('folderModal');
   const title = document.getElementById('folderModalTitle');
   const nameInput = document.getElementById('folderNameInput');
@@ -683,18 +712,30 @@ function openFolderModal(folderId = null) {
   renderFolderPickers();
   modal.classList.remove('hidden');
   modal.classList.add('flex');
+  state.activeModal = 'folder';
+  pushHistoryState();
   setTimeout(() => nameInput.focus(), 50);
 }
 
-function closeFolderModal() {
+function closeFolderModalDom() {
   const modal = document.getElementById('folderModal');
   modal.classList.add('hidden');
   modal.classList.remove('flex');
   state.editingFolderId = null;
+  if (state.activeModal === 'folder') state.activeModal = null;
+}
+
+function closeFolderModal() {
+  if (state.activeModal === 'folder') {
+    history.back();
+  } else {
+    closeFolderModalDom();
+  }
 }
 
 function openFileModal(fileId = null) {
   state.editingFileId = fileId;
+  state.openMenuFileId = null;
   const modal = document.getElementById('fileModal');
   const title = document.getElementById('fileModalTitle');
   const codeInput = document.getElementById('htmlCodeInput');
@@ -718,41 +759,65 @@ function openFileModal(fileId = null) {
 
   modal.classList.remove('hidden');
   modal.classList.add('flex');
+  state.activeModal = 'file';
+  pushHistoryState();
   setTimeout(() => codeInput.focus(), 50);
 }
 
-function closeFileModal() {
+function closeFileModalDom() {
   const modal = document.getElementById('fileModal');
   modal.classList.add('hidden');
   modal.classList.remove('flex');
   state.editingFileId = null;
+  if (state.activeModal === 'file') state.activeModal = null;
 }
 
-function openViewer(fileId) {
+function closeFileModal() {
+  if (state.activeModal === 'file') {
+    history.back();
+  } else {
+    closeFileModalDom();
+  }
+}
+
+function closeCloudModalDom() {
+  const cloudModal = document.getElementById('cloudModal');
+  cloudModal.classList.add('hidden');
+  cloudModal.classList.remove('flex');
+  if (state.activeModal === 'cloud') state.activeModal = null;
+}
+
+function openViewer(fileId, fromHistory = false) {
   const file = state.items.find(i => i.id === fileId && i.type === 'file');
   if (!file) return;
   state.viewingFileId = fileId;
+  state.openMenuFileId = null;
 
   const overlay = document.getElementById('viewerOverlay');
   const iframe = document.getElementById('viewerIframe');
 
   iframe.srcdoc = file.htmlContent;
   overlay.classList.remove('hidden');
+  if (window.lucide) window.lucide.createIcons();
 
-  if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
-    document.documentElement.requestFullscreen().catch(() => {});
+  if (!fromHistory) {
+    pushHistoryState();
   }
 }
 
-function closeViewer() {
+function closeViewerDom() {
   const overlay = document.getElementById('viewerOverlay');
   const iframe = document.getElementById('viewerIframe');
   iframe.srcdoc = '';
   overlay.classList.add('hidden');
   state.viewingFileId = null;
+}
 
-  if (document.fullscreenElement && document.exitFullscreen) {
-    document.exitFullscreen().catch(() => {});
+function closeViewer() {
+  if (state.viewingFileId) {
+    history.back();
+  } else {
+    closeViewerDom();
   }
 }
 
@@ -787,7 +852,6 @@ function toggleMobileSidebar(show) {
 
 // --- Event Listeners & Initialization ---
 async function initApp() {
-  // Persist sync key in URL query for zero-config sharing across devices
   localStorage.setItem('sn_sync_key', state.syncKey);
 
   const localData = await readLocalState();
@@ -800,9 +864,38 @@ async function initApp() {
     await writeLocalState({ items: state.items, updatedAt: state.updatedAt });
   }
 
-  // Expand root folders by default
   state.items.filter(i => i.type === 'folder' && i.parentId === null).forEach(f => {
     state.expandedFolders.add(f.id);
+  });
+
+  history.replaceState({ folderId: null, fileId: null, modal: null }, '');
+
+  window.addEventListener('popstate', (e) => {
+    const target = e.state || { folderId: null, fileId: null, modal: null };
+
+    // 1. Close any open modal if target state has no modal
+    if (state.activeModal && target.modal !== state.activeModal) {
+      closeFolderModalDom();
+      closeFileModalDom();
+      closeCloudModalDom();
+    }
+
+    // 2. Close or open file viewer based on history state
+    if (state.viewingFileId && target.fileId !== state.viewingFileId) {
+      closeViewerDom();
+    } else if (!state.viewingFileId && target.fileId) {
+      openViewer(target.fileId, true);
+    }
+
+    // 3. Step to target folder
+    const nextFolderId = target.folderId || null;
+    if (state.currentFolderId !== nextFolderId) {
+      state.currentFolderId = nextFolderId;
+      if (nextFolderId) expandAncestors(nextFolderId);
+    }
+
+    state.openMenuFileId = null;
+    renderAll();
   });
 
   renderAll();
@@ -811,8 +904,7 @@ async function initApp() {
 
   // Sidebar navigation events
   document.getElementById('navAllRoot').addEventListener('click', () => {
-    state.currentFolderId = null;
-    renderAll();
+    navigateToFolder(null);
     toggleMobileSidebar(false);
   });
 
@@ -834,9 +926,8 @@ async function initApp() {
     const row = e.target.closest('[data-folder-id]');
     if (row) {
       const id = row.getAttribute('data-folder-id');
-      state.currentFolderId = id;
       state.expandedFolders.add(id);
-      renderAll();
+      navigateToFolder(id);
       toggleMobileSidebar(false);
     }
   });
@@ -845,13 +936,22 @@ async function initApp() {
   document.getElementById('breadcrumbBar').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-bc-id]');
     if (!btn) return;
-    const id = btn.getAttribute('data-bc-id');
-    state.currentFolderId = id || null;
-    renderAll();
+    const id = btn.getAttribute('data-bc-id') || null;
+    navigateToFolder(id);
   });
 
-  // Main Grid interactions (open folder, open file, edit, delete)
+  // Main Grid interactions (open folder, open file, 3-dots menu, edit, delete)
   document.getElementById('itemsGrid').addEventListener('click', async (e) => {
+    const menuBtn = e.target.closest('[data-file-menu]');
+    if (menuBtn) {
+      e.stopPropagation();
+      const fileId = menuBtn.getAttribute('data-file-menu');
+      state.openMenuFileId = state.openMenuFileId === fileId ? null : fileId;
+      renderGrid();
+      if (window.lucide) window.lucide.createIcons();
+      return;
+    }
+
     const editFolderBtn = e.target.closest('[data-edit-folder]');
     if (editFolderBtn) {
       e.stopPropagation();
@@ -869,6 +969,7 @@ async function initApp() {
     const deleteBtn = e.target.closest('[data-delete-item]');
     if (deleteBtn) {
       e.stopPropagation();
+      state.openMenuFileId = null;
       const targetId = deleteBtn.getAttribute('data-delete-item');
       const targetItem = state.items.find(i => i.id === targetId);
       if (!targetItem) return;
@@ -884,9 +985,7 @@ async function initApp() {
     const folderCard = e.target.closest('[data-open-folder]');
     if (folderCard) {
       const folderId = folderCard.getAttribute('data-open-folder');
-      state.currentFolderId = folderId;
-      expandAncestors(folderId);
-      renderAll();
+      navigateToFolder(folderId);
       return;
     }
 
@@ -932,6 +1031,11 @@ async function initApp() {
   document.addEventListener('click', (e) => {
     if (!e.target.closest('#fabMenu') && !e.target.closest('#fabMainBtn')) {
       toggleFabMenu(false);
+    }
+    if (state.openMenuFileId && !e.target.closest('[data-file-menu]')) {
+      state.openMenuFileId = null;
+      renderGrid();
+      if (window.lucide) window.lucide.createIcons();
     }
   });
 
@@ -1034,23 +1138,9 @@ async function initApp() {
     await pushToCloud();
   });
 
-  // Full-Screen Viewer Controls
-  document.getElementById('viewerBackBtn').addEventListener('click', closeViewer);
-
-  document.getElementById('viewerEditBtn').addEventListener('click', () => {
-    if (state.viewingFileId) {
-      openFileModal(state.viewingFileId);
-    }
-  });
-
-  document.getElementById('viewerDeleteBtn').addEventListener('click', async () => {
-    if (!state.viewingFileId) return;
-    const idToDelete = state.viewingFileId;
+  // Single Circular Exit Button in Lesson Viewer (via history.back())
+  document.getElementById('viewerBackBtn').addEventListener('click', () => {
     closeViewer();
-    state.items = state.items.filter(i => i.id !== idToDelete);
-    state.updatedAt = Date.now();
-    renderAll();
-    await pushToCloud();
   });
 
   // Cloud Config Modal
@@ -1060,11 +1150,16 @@ async function initApp() {
     document.getElementById('firebaseUrlInput').value = state.firebaseUrl;
     cloudModal.classList.remove('hidden');
     cloudModal.classList.add('flex');
+    state.activeModal = 'cloud';
+    pushHistoryState();
   });
 
   const closeCloudModal = () => {
-    cloudModal.classList.add('hidden');
-    cloudModal.classList.remove('flex');
+    if (state.activeModal === 'cloud') {
+      history.back();
+    } else {
+      closeCloudModalDom();
+    }
   };
 
   document.getElementById('closeCloudModalBtn').addEventListener('click', closeCloudModal);
