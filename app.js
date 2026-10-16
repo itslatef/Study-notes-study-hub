@@ -203,7 +203,10 @@ function setSyncIndicator(status, label) {
   const dot = document.getElementById('syncDot');
   const text = document.getElementById('syncStatusText');
   const keyLbl = document.getElementById('syncKeyLabel');
-  keyLbl.textContent = `Key: ${state.syncKey}`;
+  const displayKey = state.syncKey === DEFAULT_SYNC_KEY
+    ? 'Cloud Workspace'
+    : state.syncKey.replace(/^sn-study-hub-/i, '');
+  keyLbl.textContent = displayKey;
 
   if (status === 'syncing') {
     dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0';
@@ -419,6 +422,14 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+function escapeAttr(str) {
+  return (str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 // --- Rendering Functions ---
 function renderSidebarTree() {
   const treeEl = document.getElementById('folderTree');
@@ -426,30 +437,36 @@ function renderSidebarTree() {
   const totalBadge = document.getElementById('totalItemsBadge');
 
   totalBadge.textContent = state.items.length;
-  rootNav.classList.toggle('active', state.currentFolderId === null);
+  rootNav.classList.toggle('active', state.currentFolderId === null && !state.viewingFileId);
 
   const folders = state.items
     .filter(i => i.type === 'folder')
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  function buildSubtree(parentId, depth = 0) {
-    const children = folders.filter(f => f.parentId === parentId);
-    if (children.length === 0) return '';
+  const files = state.items
+    .filter(i => i.type === 'file')
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
-    return children
+  function buildSubtree(parentId, depth = 0) {
+    const childFolders = folders.filter(f => f.parentId === parentId);
+    const childFiles = files.filter(f => f.parentId === parentId);
+    if (childFolders.length === 0 && childFiles.length === 0) return '';
+
+    const padLeft = 10 + depth * 14;
+
+    const foldersHtml = childFolders
       .map(folder => {
-        const hasSubfolders = folders.some(f => f.parentId === folder.id);
+        const hasChildren = folders.some(f => f.parentId === folder.id) || files.some(f => f.parentId === folder.id);
         const isExpanded = state.expandedFolders.has(folder.id);
-        const isActive = state.currentFolderId === folder.id;
+        const isActive = state.currentFolderId === folder.id && !state.viewingFileId;
         const count = countDirectChildren(folder.id);
-        const padLeft = 10 + depth * 14;
 
         return `
           <div>
             <div class="tree-row ${isActive ? 'active' : ''}" style="padding-left: ${padLeft}px" data-folder-id="${folder.id}">
               <button
                 type="button"
-                class="tree-toggle w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-gray-400 shrink-0 ${hasSubfolders ? '' : 'invisible'}"
+                class="tree-toggle w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-gray-400 shrink-0 ${hasChildren ? '' : 'invisible'}"
                 data-toggle-id="${folder.id}"
               >
                 <i data-lucide="${isExpanded ? 'chevron-down' : 'chevron-right'}" class="w-3.5 h-3.5"></i>
@@ -458,11 +475,25 @@ function renderSidebarTree() {
               <span class="flex-1 truncate">${escapeHtml(folder.name)}</span>
               <span class="text-[11px] text-gray-400">${count}</span>
             </div>
-            ${hasSubfolders && isExpanded ? `<div class="space-y-0.5">${buildSubtree(folder.id, depth + 1)}</div>` : ''}
+            ${hasChildren && isExpanded ? `<div class="space-y-0.5">${buildSubtree(folder.id, depth + 1)}</div>` : ''}
           </div>
         `;
       })
       .join('');
+
+    const filesHtml = childFiles
+      .map(file => {
+        const isViewing = state.viewingFileId === file.id;
+        return `
+          <div class="tree-row ${isViewing ? 'active' : ''}" style="padding-left: ${padLeft + 22}px" data-tree-file-id="${file.id}">
+            <i data-lucide="file-code" class="w-3.5 h-3.5 text-sky-400 shrink-0"></i>
+            <span class="flex-1 truncate text-xs text-gray-300">${escapeHtml(file.name)}</span>
+          </div>
+        `;
+      })
+      .join('');
+
+    return foldersHtml + filesHtml;
   }
 
   treeEl.innerHTML = buildSubtree(null, 0);
@@ -584,9 +615,10 @@ function renderGrid() {
           <div class="sn-file-preview-wrap">
             <iframe
               class="sn-file-preview-iframe"
-              sandbox=""
               loading="lazy"
-              srcdoc="${escapeHtml(item.htmlContent)}"
+              sandbox="allow-same-origin"
+              tabindex="-1"
+              srcdoc="${escapeAttr(item.htmlContent)}"
             ></iframe>
             <div class="absolute top-2.5 right-2.5 z-20">
               <button
@@ -616,7 +648,7 @@ function renderGrid() {
                 </button>
               </div>
             </div>
-            <span class="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md bg-black/65 backdrop-blur-xs text-[10px] font-semibold text-amber-300 uppercase tracking-wider">
+            <span class="absolute top-2.5 left-2.5 z-10 px-2 py-0.5 rounded-md bg-black/65 backdrop-blur-xs text-[10px] font-semibold text-amber-300 uppercase tracking-wider">
               HTML
             </span>
           </div>
@@ -920,6 +952,16 @@ async function initApp() {
       }
       renderSidebarTree();
       if (window.lucide) window.lucide.createIcons();
+      return;
+    }
+
+    const fileRow = e.target.closest('[data-tree-file-id]');
+    if (fileRow) {
+      const fileId = fileRow.getAttribute('data-tree-file-id');
+      openViewer(fileId);
+      renderSidebarTree();
+      if (window.lucide) window.lucide.createIcons();
+      toggleMobileSidebar(false);
       return;
     }
 

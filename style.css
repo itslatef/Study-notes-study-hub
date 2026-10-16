@@ -37,7 +37,7 @@ body {
   background: rgba(255, 255, 255, 0.28);
 }
 
-/* Samsung Notes Folder Card */
+/* Study Notes Folder Card */
 .sn-folder-card {
   position: relative;
   aspect-ratio: 1 / 0.94;
@@ -62,7 +62,7 @@ body {
   transform: scale(0.98);
 }
 
-/* Signature Top-Right Samsung Notes Folder Notch & Tab Cutout */
+/* Signature Top-Right Study Notes Folder Notch & Tab Cutout */
 .sn-folder-card::before {
   content: '';
   position: absolute;
@@ -134,7 +134,7 @@ body {
 .sn-file-preview-wrap {
   position: relative;
   flex: 1;
-  background: #ffffff;
+  background: #1e1e1e;
   overflow: hidden;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
@@ -142,11 +142,11 @@ body {
 .sn-file-preview-iframe {
   width: 400%;
   height: 400%;
-  border: 0;
   transform: scale(0.25);
   transform-origin: top left;
   pointer-events: none;
-  background: #ffffff;
+  border: 0;
+  user-select: none;
 }
 
 /* Card Action Buttons */
