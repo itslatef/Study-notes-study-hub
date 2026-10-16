@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sn-study-hub-v5';
+const CACHE_NAME = 'sn-study-hub-v6';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', (e) => {

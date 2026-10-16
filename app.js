@@ -1307,7 +1307,7 @@ async function initApp() {
     state.chatHistory[fileId].push({ role: 'user', text: userPrompt });
     renderAiMessages();
 
-    const model = document.getElementById('aiModelSelect').value || 'gemini-2.5-flash';
+    const model = document.getElementById('aiModelSelect').value || 'gemini-3.8-flash';
     const apiKey = localStorage.getItem('study_notes_gemini_key') || DEFAULT_KEY;
 
     const contextHeader = [
