@@ -290,15 +290,69 @@
       class="fixed inset-0 w-full h-full z-50 border-0 bg-white"
       sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
     ></iframe>
-    <!-- Single Minimal Semi-Transparent Circular Exit Button -->
-    <button
-      id="viewerBackBtn"
-      title="Close Lesson"
-      aria-label="Close Lesson"
-      class="fixed bottom-4 left-4 z-[60] w-10 h-10 rounded-full bg-black/75 hover:bg-black/90 text-white border border-white/20 shadow-2xl flex items-center justify-center opacity-35 hover:opacity-100 transition-opacity duration-200"
+    <!-- Bottom-Left Exit (✕) & Gemini Copilot (✨) Buttons -->
+    <div class="fixed bottom-4 left-4 z-[60] flex items-center gap-2">
+      <button
+        id="viewerBackBtn"
+        title="Close Lesson"
+        aria-label="Close Lesson"
+        class="w-10 h-10 rounded-full bg-black/75 hover:bg-black/90 text-white border border-white/20 shadow-2xl flex items-center justify-center opacity-35 hover:opacity-100 transition-opacity duration-200"
+      >
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <button
+        id="aiToggleBtn"
+        title="AI Tutor Copilot"
+        aria-label="AI Tutor Copilot"
+        class="w-10 h-10 rounded-full bg-black/75 hover:bg-black/90 text-amber-300 border border-white/20 shadow-2xl flex items-center justify-center opacity-45 hover:opacity-100 transition-opacity duration-200 text-base"
+      >
+        ✨
+      </button>
+    </div>
+
+    <!-- Embedded Gemini Copilot Right Slide-Over Sidebar -->
+    <aside
+      id="aiCopilotPanel"
+      class="fixed top-0 right-0 h-full w-[380px] max-w-full bg-[#181818] border-l border-white/10 z-[65] flex flex-col shadow-2xl transition-transform duration-200 translate-x-full"
     >
-      <i data-lucide="x" class="w-5 h-5"></i>
-    </button>
+      <div class="p-3 border-b border-white/10 bg-[#1f1f1f] flex items-center justify-between gap-2">
+        <div class="flex items-center gap-1.5 min-w-0 flex-1">
+          <span class="text-base">✨</span>
+          <select
+            id="aiModelSelect"
+            class="bg-[#121212] text-xs font-medium text-gray-200 border border-white/15 rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#ff6b4a] truncate"
+          >
+            <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+            <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+            <option value="gemini-flash-latest">gemini-flash-latest</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-1">
+          <button id="aiKeyBtn" type="button" title="Set Custom Gemini API Key" class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-sm">🔑</button>
+          <button id="aiClearBtn" type="button" title="Clear Chat" class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-sm">🗑️</button>
+          <button id="aiCloseBtn" type="button" title="Close Copilot" class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-gray-300 hover:text-white text-sm">✕</button>
+        </div>
+      </div>
+
+      <div id="aiMessages" class="flex-1 overflow-y-auto p-3.5 space-y-3 text-sm select-text"></div>
+
+      <form id="aiChatForm" class="p-3 border-t border-white/10 bg-[#141414] flex items-end gap-2">
+        <textarea
+          id="aiPromptInput"
+          rows="2"
+          dir="auto"
+          placeholder="Ask about this lesson or selected text..."
+          class="flex-1 bg-[#1e1e1e] text-white placeholder-gray-500 text-xs sm:text-sm rounded-xl px-3 py-2 border border-white/10 focus:outline-none focus:border-[#ff6b4a] resize-none"
+        ></textarea>
+        <button
+          id="aiSendBtn"
+          type="submit"
+          class="px-3.5 py-2 rounded-xl bg-[#ff6b4a] hover:bg-[#ff5733] text-white text-xs font-semibold shrink-0 transition"
+        >
+          Send
+        </button>
+      </form>
+    </aside>
   </div>
 
   <script src="app.js"></script>

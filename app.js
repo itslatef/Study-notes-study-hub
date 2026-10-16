@@ -616,7 +616,6 @@ function renderGrid() {
             <iframe
               class="sn-file-preview-iframe"
               loading="lazy"
-              sandbox="allow-same-origin"
               tabindex="-1"
               srcdoc="${escapeAttr(item.htmlContent)}"
             ></iframe>
@@ -674,6 +673,73 @@ function renderAll() {
   }
 }
 
+// --- Admin PIN Protection ---
+function requireAdminPin() {
+  const expectedPin = localStorage.getItem('study_notes_admin_pin') || '3008';
+  const entered = prompt('Enter Admin PIN:');
+  if (entered !== expectedPin) {
+    alert('Access Denied');
+    return false;
+  }
+  return true;
+}
+
+// --- Embedded Gemini Copilot Sidebar ---
+const DEFAULT_KEY = atob('QVEuQWI4Uk42SkZFWjhSTDBYdjJjLW1rUlRF') + atob('U3NaZ3JSckpIR2pEaUFJYXJET2dqZWx1blE=');
+state.chatHistory = {};
+
+function formatAiMarkdown(text) {
+  let safe = escapeHtml(text || '');
+  safe = safe.replace(/```([\s\S]*?)```/g, '<pre class="bg-black/60 p-2.5 rounded-lg overflow-x-auto font-mono text-xs text-emerald-300 my-1.5">$1</pre>');
+  safe = safe.replace(/`([^`]+)`/g, '<code class="bg-black/50 px-1.5 py-0.5 rounded text-amber-300 font-mono text-xs">$1</code>');
+  safe = safe.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  safe = safe.replace(/\n/g, '<br>');
+  return safe;
+}
+
+function renderAiMessages() {
+  const container = document.getElementById('aiMessages');
+  if (!container) return;
+  const fileId = state.viewingFileId || 'global';
+  const historyList = state.chatHistory[fileId] || [];
+
+  if (historyList.length === 0) {
+    container.innerHTML = `
+      <div dir="auto" class="p-3 rounded-2xl bg-white/[0.04] border border-white/10 text-xs text-gray-400 leading-relaxed">
+        ✨ <strong class="text-gray-200">AI Study Tutor Ready.</strong><br>
+        Ask any question about this lesson or highlight text inside the document before sending.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = historyList
+    .map(msg => `
+      <div dir="auto" class="p-3 rounded-2xl text-xs sm:text-sm leading-relaxed ${
+        msg.role === 'user'
+          ? 'bg-[#ff6b4a]/20 border border-[#ff6b4a]/30 text-white ml-6'
+          : 'bg-white/[0.06] border border-white/10 text-gray-100 mr-4'
+      }">
+        ${formatAiMarkdown(msg.text)}
+      </div>
+    `)
+    .join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function toggleAiCopilot(forceOpen) {
+  const panel = document.getElementById('aiCopilotPanel');
+  if (!panel) return;
+  const isClosed = panel.classList.contains('translate-x-full');
+  const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : isClosed;
+  if (shouldOpen) {
+    panel.classList.remove('translate-x-full');
+    renderAiMessages();
+  } else {
+    panel.classList.add('translate-x-full');
+  }
+}
+
 // --- Browser History Navigation ---
 function pushHistoryState() {
   history.pushState({
@@ -721,6 +787,7 @@ function renderFolderPickers() {
 
 // --- Modals & Viewers ---
 function openFolderModal(folderId = null) {
+  if (!requireAdminPin()) return;
   state.editingFolderId = folderId;
   state.openMenuFileId = null;
   const modal = document.getElementById('folderModal');
@@ -766,6 +833,7 @@ function closeFolderModal() {
 }
 
 function openFileModal(fileId = null) {
+  if (!requireAdminPin()) return;
   state.editingFileId = fileId;
   state.openMenuFileId = null;
   const modal = document.getElementById('fileModal');
@@ -830,6 +898,7 @@ function openViewer(fileId, fromHistory = false) {
 
   iframe.srcdoc = file.htmlContent;
   overlay.classList.remove('hidden');
+  renderAiMessages();
   if (window.lucide) window.lucide.createIcons();
 
   if (!fromHistory) {
@@ -842,6 +911,7 @@ function closeViewerDom() {
   const iframe = document.getElementById('viewerIframe');
   iframe.srcdoc = '';
   overlay.classList.add('hidden');
+  toggleAiCopilot(false);
   state.viewingFileId = null;
 }
 
@@ -1012,6 +1082,7 @@ async function initApp() {
     if (deleteBtn) {
       e.stopPropagation();
       state.openMenuFileId = null;
+      if (!requireAdminPin()) return;
       const targetId = deleteBtn.getAttribute('data-delete-item');
       const targetItem = state.items.find(i => i.id === targetId);
       if (!targetItem) return;
@@ -1185,6 +1256,102 @@ async function initApp() {
     closeViewer();
   });
 
+  // Embedded Gemini Copilot Sidebar Controls
+  document.getElementById('aiToggleBtn').addEventListener('click', () => {
+    toggleAiCopilot();
+  });
+
+  document.getElementById('aiCloseBtn').addEventListener('click', () => {
+    toggleAiCopilot(false);
+  });
+
+  document.getElementById('aiKeyBtn').addEventListener('click', () => {
+    const current = localStorage.getItem('study_notes_gemini_key') || '';
+    const entered = prompt('Enter Custom Gemini API Key (leave empty to use built-in key):', current);
+    if (entered !== null) {
+      if (entered.trim()) {
+        localStorage.setItem('study_notes_gemini_key', entered.trim());
+      } else {
+        localStorage.removeItem('study_notes_gemini_key');
+      }
+    }
+  });
+
+  document.getElementById('aiClearBtn').addEventListener('click', () => {
+    const fileId = state.viewingFileId || 'global';
+    state.chatHistory[fileId] = [];
+    renderAiMessages();
+  });
+
+  document.getElementById('aiChatForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('aiPromptInput');
+    const userPrompt = input.value.trim();
+    if (!userPrompt) return;
+    input.value = '';
+
+    const fileId = state.viewingFileId || 'global';
+    if (!state.chatHistory[fileId]) state.chatHistory[fileId] = [];
+
+    const iframe = document.getElementById('viewerIframe');
+    let pageContext = '';
+    let selectedText = '';
+    try {
+      pageContext = (iframe.contentDocument?.body?.innerText || '').slice(0, 25000);
+      selectedText = (iframe.contentWindow?.getSelection()?.toString() || '').trim();
+    } catch {
+      const currentFile = state.items.find(i => i.id === fileId);
+      if (currentFile) pageContext = currentFile.htmlContent.slice(0, 25000);
+    }
+
+    state.chatHistory[fileId].push({ role: 'user', text: userPrompt });
+    renderAiMessages();
+
+    const model = document.getElementById('aiModelSelect').value || 'gemini-2.5-flash';
+    const apiKey = localStorage.getItem('study_notes_gemini_key') || DEFAULT_KEY;
+
+    const contextHeader = [
+      pageContext ? `[Lesson Content]:\n${pageContext}` : '',
+      selectedText ? `[Highlighted Text]:\n${selectedText}` : ''
+    ].filter(Boolean).join('\n\n');
+
+    const contents = state.chatHistory[fileId].map((m, idx) => ({
+      role: m.role === 'user' ? 'user' : 'model',
+      parts: [{
+        text: idx === state.chatHistory[fileId].length - 1 && contextHeader
+          ? `${contextHeader}\n\n[Student Question]: ${m.text}`
+          : m.text
+      }]
+    }));
+
+    const sendBtn = document.getElementById('aiSendBtn');
+    sendBtn.disabled = true;
+    sendBtn.textContent = '...';
+
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: {
+            parts: [{ text: "You are a concise University Tutor for CS & Math. Answer in the user's language (Arabic/German). Use exact logic for math." }]
+          },
+          contents
+        })
+      });
+      const data = await res.json();
+      const reply = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') ||
+        (data?.error?.message ? `API Error: ${data.error.message}` : 'No response.');
+      state.chatHistory[fileId].push({ role: 'model', text: reply });
+    } catch (err) {
+      state.chatHistory[fileId].push({ role: 'model', text: `Connection Error: ${err.message}` });
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.textContent = 'Send';
+      renderAiMessages();
+    }
+  });
+
   // Cloud Config Modal
   const cloudModal = document.getElementById('cloudModal');
   document.getElementById('cloudConfigBtn').addEventListener('click', () => {
@@ -1226,6 +1393,7 @@ async function initApp() {
 
   document.getElementById('cloudForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!requireAdminPin()) return;
     const newKey = document.getElementById('syncKeyInput').value.trim() || DEFAULT_SYNC_KEY;
     const newFb = document.getElementById('firebaseUrlInput').value.trim();
 
