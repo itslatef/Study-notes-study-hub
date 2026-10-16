@@ -1266,13 +1266,13 @@ async function initApp() {
   });
 
   document.getElementById('aiKeyBtn').addEventListener('click', () => {
-    const current = localStorage.getItem('study_notes_gemini_key') || '';
-    const entered = prompt('Enter Custom Gemini API Key (leave empty to use built-in key):', current);
+    const current = localStorage.getItem('study_notes_openrouter_key') || '';
+    const entered = prompt('Enter Custom OpenRouter API Key (leave empty to use built-in key):', current);
     if (entered !== null) {
       if (entered.trim()) {
-        localStorage.setItem('study_notes_gemini_key', entered.trim());
+        localStorage.setItem('study_notes_openrouter_key', entered.trim());
       } else {
-        localStorage.removeItem('study_notes_gemini_key');
+        localStorage.removeItem('study_notes_openrouter_key');
       }
     }
   });
@@ -1286,8 +1286,8 @@ async function initApp() {
   document.getElementById('aiChatForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const input = document.getElementById('aiPromptInput');
-    const userPrompt = input.value.trim();
-    if (!userPrompt) return;
+    const userMessage = input.value.trim();
+    if (!userMessage) return;
     input.value = '';
 
     const fileId = state.viewingFileId || 'global';
@@ -1304,11 +1304,11 @@ async function initApp() {
       if (currentFile) pageContext = currentFile.htmlContent.slice(0, 25000);
     }
 
-    state.chatHistory[fileId].push({ role: 'user', text: userPrompt });
+    state.chatHistory[fileId].push({ role: 'user', text: userMessage });
     renderAiMessages();
 
     const selectedModel = document.getElementById('aiModelSelect').value || 'meta-llama/llama-3.1-8b-instruct:free';
-    const rawKey = localStorage.getItem('study_notes_gemini_key') || DEFAULT_KEY;
+    const rawKey = localStorage.getItem('study_notes_openrouter_key') || DEFAULT_KEY;
     const activeKey = rawKey.replace(/^Sk-or-v1-/, 'sk-or-v1-');
 
     const lessonContext = [
@@ -1321,7 +1321,7 @@ async function initApp() {
     sendBtn.textContent = '...';
 
     try {
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer ' + activeKey,
@@ -1333,14 +1333,14 @@ async function initApp() {
           model: selectedModel,
           messages: [
             { role: 'system', content: 'You are an expert University Tutor for Applied CS & Math. Answer in Arabic/German.' },
-            { role: 'user', content: lessonContext + '\n\nUser Question:\n' + userPrompt }
+            { role: 'user', content: `Context:\n${lessonContext}\n\nQuestion:\n${userMessage}` }
           ]
         })
       });
-      const data = await res.json();
-      const reply = data?.choices?.[0]?.message?.content ||
+      const data = await response.json();
+      const aiText = data?.choices?.[0]?.message?.content ||
         (data?.error?.message ? `API Error: ${data.error.message}` : 'No response.');
-      state.chatHistory[fileId].push({ role: 'model', text: reply });
+      state.chatHistory[fileId].push({ role: 'model', text: aiText });
     } catch (err) {
       state.chatHistory[fileId].push({ role: 'model', text: `Connection Error: ${err.message}` });
     } finally {

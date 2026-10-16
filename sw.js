@@ -1,5 +1,5 @@
-const CACHE_NAME = 'sn-study-hub-v7';
-const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json'];
+const CACHE_NAME = 'sn-study-hub-v8';
+const ASSETS = ['./', './index.html', './style.css', './app.js?v=8', './manifest.json'];
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -19,6 +19,6 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request))
+    fetch(e.request, { cache: 'no-cache' }).catch(() => caches.match(e.request))
   );
 });
