@@ -738,27 +738,58 @@ async function loadFreeOpenRouterModels() {
   }
 }
 
+async function ensureMathAndMarkdownLoaded() {
+  if (!document.querySelector('link[href*="katex"]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css';
+    document.head.appendChild(link);
+  }
+  const loadScript = (src) => new Promise((res) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = res;
+    s.onerror = res;
+    document.head.appendChild(s);
+  });
+  if (!window.marked) await loadScript('https://cdn.jsdelivr.net/npm/marked/marked.min.js');
+  if (!window.katex) await loadScript('https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js');
+  renderAiMessages();
+}
+ensureMathAndMarkdownLoaded();
+
+if ('caches' in window) {
+  caches.keys().then(keys => keys.filter(k => k !== 'sn-study-hub-v12').forEach(k => caches.delete(k))).catch(() => {});
+}
+
 function formatAIChatResponse(raw) {
   if (!raw) return '';
   let mathBlocks = [];
   // 1. Extract and render block math \[...\] and $$...$$
   let text = raw.replace(/(\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\])/g, (match) => {
     let tex = match.slice(2, -2).trim();
-    let html = window.katex ? katex.renderToString(tex, { displayMode: true, throwOnError: false }) : match;
+    let html = window.katex ? window.katex.renderToString(tex, { displayMode: true, throwOnError: false }) : match;
     mathBlocks.push(html);
-    return `@@MATH_BLOCK_${mathBlocks.length - 1}@@`;
+    return `@@MATHBLOCK${mathBlocks.length - 1}@@`;
   });
   // 2. Extract and render inline math \(...\) and $...$
   text = text.replace(/(\\\([\s\S]*?\\\)|\$[^\$\n]+?\$)/g, (match) => {
     let tex = match.startsWith('\\(') ? match.slice(2, -2) : match.slice(1, -1);
-    let html = window.katex ? katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false }) : match;
+    let html = window.katex ? window.katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false }) : match;
     mathBlocks.push(html);
-    return `@@MATH_BLOCK_${mathBlocks.length - 1}@@`;
+    return `@@MATHBLOCK${mathBlocks.length - 1}@@`;
   });
   // 3. Parse Markdown (headers ###, bold, tables, lists)
-  let parsed = window.marked ? marked.parse(text) : text.replace(/\n/g, '<br>');
+  let parsed = window.marked
+    ? window.marked.parse(text)
+    : text
+        .replace(/^###\s+(.*)$/gm, '<h3>$1</h3>')
+        .replace(/^##\s+(.*)$/gm, '<h2>$1</h2>')
+        .replace(/^#\s+(.*)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
   // 4. Restore rendered KaTeX HTML
-  return parsed.replace(/@@MATH_BLOCK_(\d+)@@/g, (_, idx) => mathBlocks[Number(idx)]);
+  return parsed.replace(/@@MATH(?:_?BLOCK_?)(\d+)@@/g, (_, idx) => mathBlocks[Number(idx)]);
 }
 
 function renderAiMessages() {
