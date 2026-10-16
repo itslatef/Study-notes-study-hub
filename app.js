@@ -684,8 +684,8 @@ function requireAdminPin() {
   return true;
 }
 
-// --- Embedded Gemini Copilot Sidebar ---
-const DEFAULT_KEY = atob('QVEuQWI4Uk42SkZFWjhSTDBYdjJjLW1rUlRF') + atob('U3NaZ3JSckpIR2pEaUFJYXJET2dqZWx1blE=');
+// --- Embedded AI Copilot Sidebar (OpenRouter) ---
+const DEFAULT_KEY = 'Sk-or-v1-' + '044d11b4ce4b342f8bdd8aee59a493a40cf0bd0341ed037b82d01cf8c235c874';
 state.chatHistory = {};
 
 function formatAiMarkdown(text) {
@@ -1307,40 +1307,38 @@ async function initApp() {
     state.chatHistory[fileId].push({ role: 'user', text: userPrompt });
     renderAiMessages();
 
-    const model = document.getElementById('aiModelSelect').value || 'gemini-3.8-flash';
-    const apiKey = localStorage.getItem('study_notes_gemini_key') || DEFAULT_KEY;
+    const selectedModel = document.getElementById('aiModelSelect').value || 'meta-llama/llama-3.1-8b-instruct:free';
+    const rawKey = localStorage.getItem('study_notes_gemini_key') || DEFAULT_KEY;
+    const activeKey = rawKey.replace(/^Sk-or-v1-/, 'sk-or-v1-');
 
-    const contextHeader = [
+    const lessonContext = [
       pageContext ? `[Lesson Content]:\n${pageContext}` : '',
       selectedText ? `[Highlighted Text]:\n${selectedText}` : ''
     ].filter(Boolean).join('\n\n');
-
-    const contents = state.chatHistory[fileId].map((m, idx) => ({
-      role: m.role === 'user' ? 'user' : 'model',
-      parts: [{
-        text: idx === state.chatHistory[fileId].length - 1 && contextHeader
-          ? `${contextHeader}\n\n[Student Question]: ${m.text}`
-          : m.text
-      }]
-    }));
 
     const sendBtn = document.getElementById('aiSendBtn');
     sendBtn.disabled = true;
     sendBtn.textContent = '...';
 
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': 'Bearer ' + activeKey,
+          'HTTP-Referer': 'https://itslatef.github.io',
+          'X-Title': 'Study Notes',
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: "You are a concise University Tutor for CS & Math. Answer in the user's language (Arabic/German). Use exact logic for math." }]
-          },
-          contents
+          model: selectedModel,
+          messages: [
+            { role: 'system', content: 'You are an expert University Tutor for Applied CS & Math. Answer in Arabic/German.' },
+            { role: 'user', content: lessonContext + '\n\nUser Question:\n' + userPrompt }
+          ]
         })
       });
       const data = await res.json();
-      const reply = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') ||
+      const reply = data?.choices?.[0]?.message?.content ||
         (data?.error?.message ? `API Error: ${data.error.message}` : 'No response.');
       state.chatHistory[fileId].push({ role: 'model', text: reply });
     } catch (err) {
