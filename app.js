@@ -685,8 +685,58 @@ function requireAdminPin() {
 }
 
 // --- Embedded AI Copilot Sidebar (OpenRouter) ---
-const DEFAULT_KEY = 'Sk-or-v1-' + '044d11b4ce4b342f8bdd8aee59a493a40cf0bd0341ed037b82d01cf8c235c874';
+const DEFAULT_KEY = 'sk-or-v1-' + '044d11b4ce4b342f8bdd8aee59a493a40cf0bd0341ed037b82d01cf8c235c874';
 state.chatHistory = {};
+state.modelsLoaded = false;
+
+['study_notes_openrouter_key', 'study_notes_gemini_key'].forEach(k => {
+  const val = localStorage.getItem(k);
+  if (val && !val.trim().toLowerCase().startsWith('sk-or-')) {
+    localStorage.removeItem(k);
+  }
+});
+
+async function loadFreeOpenRouterModels() {
+  if (state.modelsLoaded) return;
+  const select = document.getElementById('aiModelSelect');
+  if (!select) return;
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/models');
+    if (!res.ok) return;
+    const json = await res.json();
+    const list = Array.isArray(json?.data) ? json.data : [];
+    const freeModels = list.filter(m => typeof m.id === 'string' && m.id.endsWith(':free'));
+
+    const priorityRank = (id) => {
+      const lower = id.toLowerCase();
+      if (lower.includes('deepseek')) return 1;
+      if (lower.includes('qwen')) return 2;
+      if (lower.includes('gemini')) return 3;
+      if (lower.includes('llama')) return 4;
+      return 5;
+    };
+
+    freeModels.sort((a, b) => {
+      const pa = priorityRank(a.id);
+      const pb = priorityRank(b.id);
+      if (pa !== pb) return pa - pb;
+      return (a.name || a.id).localeCompare(b.name || b.id);
+    });
+
+    const currentVal = select.value || 'openrouter/free';
+    select.innerHTML = `<option value="openrouter/free">✨ Auto Best Free (Smart Router)</option>` +
+      freeModels.map(m => {
+        const cleanName = (m.name || m.id).replace(/\s*\(free\)\s*/ig, '').trim();
+        return `<option value="${escapeAttr(m.id)}">${escapeHtml(cleanName)}</option>`;
+      }).join('');
+    if ([...select.options].some(o => o.value === currentVal)) {
+      select.value = currentVal;
+    }
+    state.modelsLoaded = true;
+  } catch {
+    // Keep default Smart Router option
+  }
+}
 
 function formatAiMarkdown(text) {
   let safe = escapeHtml(text || '');
@@ -734,6 +784,7 @@ function toggleAiCopilot(forceOpen) {
   const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : isClosed;
   if (shouldOpen) {
     panel.classList.remove('translate-x-full');
+    loadFreeOpenRouterModels();
     renderAiMessages();
   } else {
     panel.classList.add('translate-x-full');
@@ -1307,20 +1358,21 @@ async function initApp() {
     state.chatHistory[fileId].push({ role: 'user', text: userMessage });
     renderAiMessages();
 
-    const selectedModel = document.getElementById('aiModelSelect').value || 'meta-llama/llama-3.1-8b-instruct:free';
+    const selectedModel = document.getElementById('aiModelSelect').value || 'openrouter/free';
     const rawKey = localStorage.getItem('study_notes_openrouter_key') || DEFAULT_KEY;
-    const activeKey = rawKey.replace(/^Sk-or-v1-/, 'sk-or-v1-');
+    const activeKey = rawKey.trim().replace(/^Sk-or-v1-/, 'sk-or-v1-');
 
     const lessonContext = [
       pageContext ? `[Lesson Content]:\n${pageContext}` : '',
       selectedText ? `[Highlighted Text]:\n${selectedText}` : ''
     ].filter(Boolean).join('\n\n');
 
-    const sendBtn = document.getElementById('aiSendBtn');
-    sendBtn.disabled = true;
-    sendBtn.textContent = '...';
+    const messagesPayload = [
+      { role: 'system', content: 'You are an expert University Tutor for Applied CS & Math. Answer in Arabic/German.' },
+      { role: 'user', content: `Context:\n${lessonContext}\n\nQuestion:\n${userMessage}` }
+    ];
 
-    try {
+    const callOpenRouter = async (modelId) => {
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -1330,14 +1382,22 @@ async function initApp() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: selectedModel,
-          messages: [
-            { role: 'system', content: 'You are an expert University Tutor for Applied CS & Math. Answer in Arabic/German.' },
-            { role: 'user', content: `Context:\n${lessonContext}\n\nQuestion:\n${userMessage}` }
-          ]
+          model: modelId,
+          messages: messagesPayload
         })
       });
-      const data = await response.json();
+      return await response.json();
+    };
+
+    const sendBtn = document.getElementById('aiSendBtn');
+    sendBtn.disabled = true;
+    sendBtn.textContent = '...';
+
+    try {
+      let data = await callOpenRouter(selectedModel);
+      if ((!data?.choices?.[0]?.message?.content || data?.error) && selectedModel !== 'openrouter/free') {
+        data = await callOpenRouter('openrouter/free');
+      }
       const aiText = data?.choices?.[0]?.message?.content ||
         (data?.error?.message ? `API Error: ${data.error.message}` : 'No response.');
       state.chatHistory[fileId].push({ role: 'model', text: aiText });
@@ -1349,6 +1409,8 @@ async function initApp() {
       renderAiMessages();
     }
   });
+
+  loadFreeOpenRouterModels();
 
   // Cloud Config Modal
   const cloudModal = document.getElementById('cloudModal');

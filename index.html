@@ -322,13 +322,11 @@
             id="aiModelSelect"
             class="bg-[#121212] text-xs font-medium text-gray-200 border border-white/15 rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#ff6b4a] truncate"
           >
-            <option value="meta-llama/llama-3.1-8b-instruct:free">🦙 Llama 3.1 (Fast & Free)</option>
-            <option value="qwen/qwen-2.5-72b-instruct:free">🧠 Qwen 2.5 (Advanced Math)</option>
-            <option value="google/gemini-flash-1.5-exp:free">⚡ Gemini 1.5 (Stable Free)</option>
+            <option value="openrouter/free">✨ Auto Best Free (Smart Router)</option>
           </select>
         </div>
         <div class="flex items-center gap-1">
-          <button id="aiKeyBtn" type="button" title="Set Custom Gemini API Key" class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-sm">🔑</button>
+          <button id="aiKeyBtn" type="button" title="Set Custom OpenRouter API Key" class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-sm">🔑</button>
           <button id="aiClearBtn" type="button" title="Clear Chat" class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-sm">🗑️</button>
           <button id="aiCloseBtn" type="button" title="Close Copilot" class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-gray-300 hover:text-white text-sm">✕</button>
         </div>
@@ -355,11 +353,11 @@
     </aside>
   </div>
 
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=8').then((reg) => reg.update()).catch(() => {});
+        navigator.serviceWorker.register('./sw.js?v=9').then((reg) => reg.update()).catch(() => {});
       });
     }
   </script>
