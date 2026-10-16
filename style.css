@@ -247,3 +247,61 @@ body {
     transform: translateY(0) scale(1);
   }
 }
+
+/* AI Copilot Markdown & KaTeX Styling */
+.ai-msg-bubble h1,
+.ai-msg-bubble h2,
+.ai-msg-bubble h3,
+.ai-msg-bubble h4 {
+  font-weight: 700;
+  color: #ffffff;
+  margin-top: 0.6rem;
+  margin-bottom: 0.35rem;
+}
+.ai-msg-bubble p {
+  margin-bottom: 0.45rem;
+}
+.ai-msg-bubble p:last-child {
+  margin-bottom: 0;
+}
+.ai-msg-bubble ul,
+.ai-msg-bubble ol {
+  padding-inline-start: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+.ai-msg-bubble ul {
+  list-style-type: disc;
+}
+.ai-msg-bubble ol {
+  list-style-type: decimal;
+}
+.ai-msg-bubble pre {
+  background: rgba(0, 0, 0, 0.55);
+  padding: 0.6rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 0.4rem 0;
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #6ee7b7;
+}
+.ai-msg-bubble code {
+  background: rgba(0, 0, 0, 0.45);
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  font-size: 0.78rem;
+  color: #fcd34d;
+}
+.ai-msg-bubble pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+.ai-msg-bubble .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+  margin: 0.4rem 0;
+}
+

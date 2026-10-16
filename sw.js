@@ -1,5 +1,5 @@
-const CACHE_NAME = 'sn-study-hub-v10';
-const ASSETS = ['./', './index.html', './style.css', './app.js?v=10', './manifest.json'];
+const CACHE_NAME = 'sn-study-hub-v11';
+const ASSETS = ['./', './index.html', './style.css?v=11', './app.js?v=11', './manifest.json'];
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();

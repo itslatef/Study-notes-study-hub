@@ -738,13 +738,27 @@ async function loadFreeOpenRouterModels() {
   }
 }
 
-function formatAiMarkdown(text) {
-  let safe = escapeHtml(text || '');
-  safe = safe.replace(/```([\s\S]*?)```/g, '<pre class="bg-black/60 p-2.5 rounded-lg overflow-x-auto font-mono text-xs text-emerald-300 my-1.5">$1</pre>');
-  safe = safe.replace(/`([^`]+)`/g, '<code class="bg-black/50 px-1.5 py-0.5 rounded text-amber-300 font-mono text-xs">$1</code>');
-  safe = safe.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  safe = safe.replace(/\n/g, '<br>');
-  return safe;
+function formatAIChatResponse(raw) {
+  if (!raw) return '';
+  let mathBlocks = [];
+  // 1. Extract and render block math \[...\] and $$...$$
+  let text = raw.replace(/(\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\])/g, (match) => {
+    let tex = match.slice(2, -2).trim();
+    let html = window.katex ? katex.renderToString(tex, { displayMode: true, throwOnError: false }) : match;
+    mathBlocks.push(html);
+    return `@@MATH_BLOCK_${mathBlocks.length - 1}@@`;
+  });
+  // 2. Extract and render inline math \(...\) and $...$
+  text = text.replace(/(\\\([\s\S]*?\\\)|\$[^\$\n]+?\$)/g, (match) => {
+    let tex = match.startsWith('\\(') ? match.slice(2, -2) : match.slice(1, -1);
+    let html = window.katex ? katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false }) : match;
+    mathBlocks.push(html);
+    return `@@MATH_BLOCK_${mathBlocks.length - 1}@@`;
+  });
+  // 3. Parse Markdown (headers ###, bold, tables, lists)
+  let parsed = window.marked ? marked.parse(text) : text.replace(/\n/g, '<br>');
+  // 4. Restore rendered KaTeX HTML
+  return parsed.replace(/@@MATH_BLOCK_(\d+)@@/g, (_, idx) => mathBlocks[Number(idx)]);
 }
 
 function renderAiMessages() {
@@ -765,12 +779,12 @@ function renderAiMessages() {
 
   container.innerHTML = historyList
     .map(msg => `
-      <div dir="auto" class="p-3 rounded-2xl text-xs sm:text-sm leading-relaxed ${
+      <div dir="auto" class="ai-msg-bubble p-3 rounded-2xl text-xs sm:text-sm leading-relaxed overflow-x-auto ${
         msg.role === 'user'
           ? 'bg-[#ff6b4a]/20 border border-[#ff6b4a]/30 text-white ml-6'
           : 'bg-white/[0.06] border border-white/10 text-gray-100 mr-4'
       }">
-        ${formatAiMarkdown(msg.text)}
+        ${formatAIChatResponse(msg.text)}
       </div>
     `)
     .join('');
