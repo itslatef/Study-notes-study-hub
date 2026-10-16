@@ -1393,13 +1393,21 @@ async function initApp() {
     sendBtn.disabled = true;
     sendBtn.textContent = '...';
 
+    const extractReply = (d) => {
+      const m = d?.choices?.[0]?.message;
+      return (m?.content && m.content.trim()) || (m?.reasoning && m.reasoning.trim()) || '';
+    };
+
     try {
       let data = await callOpenRouter(selectedModel);
-      if ((!data?.choices?.[0]?.message?.content || data?.error) && selectedModel !== 'openrouter/free') {
+      let aiText = extractReply(data);
+      if (!aiText && selectedModel !== 'openrouter/free') {
         data = await callOpenRouter('openrouter/free');
+        aiText = extractReply(data);
       }
-      const aiText = data?.choices?.[0]?.message?.content ||
-        (data?.error?.message ? `API Error: ${data.error.message}` : 'No response.');
+      if (!aiText) {
+        aiText = data?.error?.message ? `API Error: ${data.error.message}` : 'No response.';
+      }
       state.chatHistory[fileId].push({ role: 'model', text: aiText });
     } catch (err) {
       state.chatHistory[fileId].push({ role: 'model', text: `Connection Error: ${err.message}` });
