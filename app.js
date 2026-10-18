@@ -443,20 +443,20 @@ function renderSidebarTree() {
     .filter(i => i.type === 'folder')
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const files = state.items
-    .filter(i => i.type === 'file')
+  const leaves = state.items
+    .filter(i => i.type === 'file' || i.type === 'link')
     .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
   function buildSubtree(parentId, depth = 0) {
     const childFolders = folders.filter(f => f.parentId === parentId);
-    const childFiles = files.filter(f => f.parentId === parentId);
-    if (childFolders.length === 0 && childFiles.length === 0) return '';
+    const childLeaves = leaves.filter(f => f.parentId === parentId);
+    if (childFolders.length === 0 && childLeaves.length === 0) return '';
 
     const padLeft = 10 + depth * 14;
 
     const foldersHtml = childFolders
       .map(folder => {
-        const hasChildren = folders.some(f => f.parentId === folder.id) || files.some(f => f.parentId === folder.id);
+        const hasChildren = folders.some(f => f.parentId === folder.id) || leaves.some(f => f.parentId === folder.id);
         const isExpanded = state.expandedFolders.has(folder.id);
         const isActive = state.currentFolderId === folder.id && !state.viewingFileId;
         const count = countDirectChildren(folder.id);
@@ -481,19 +481,27 @@ function renderSidebarTree() {
       })
       .join('');
 
-    const filesHtml = childFiles
-      .map(file => {
-        const isViewing = state.viewingFileId === file.id;
+    const leavesHtml = childLeaves
+      .map(item => {
+        if (item.type === 'link') {
+          return `
+            <div class="tree-row" style="padding-left: ${padLeft + 22}px" data-tree-link-url="${escapeAttr(item.url)}">
+              <i data-lucide="external-link" class="w-3.5 h-3.5 text-emerald-400 shrink-0"></i>
+              <span class="flex-1 truncate text-xs text-gray-300">${escapeHtml(item.name)}</span>
+            </div>
+          `;
+        }
+        const isViewing = state.viewingFileId === item.id;
         return `
-          <div class="tree-row ${isViewing ? 'active' : ''}" style="padding-left: ${padLeft + 22}px" data-tree-file-id="${file.id}">
+          <div class="tree-row ${isViewing ? 'active' : ''}" style="padding-left: ${padLeft + 22}px" data-tree-file-id="${item.id}">
             <i data-lucide="file-code" class="w-3.5 h-3.5 text-sky-400 shrink-0"></i>
-            <span class="flex-1 truncate text-xs text-gray-300">${escapeHtml(file.name)}</span>
+            <span class="flex-1 truncate text-xs text-gray-300">${escapeHtml(item.name)}</span>
           </div>
         `;
       })
       .join('');
 
-    return foldersHtml + filesHtml;
+    return foldersHtml + leavesHtml;
   }
 
   treeEl.innerHTML = buildSubtree(null, 0);
@@ -541,7 +549,8 @@ function renderGrid() {
     if (query) {
       return (
         item.name.toLowerCase().includes(query) ||
-        (item.icon && item.icon.toLowerCase().includes(query))
+        (item.icon && item.icon.toLowerCase().includes(query)) ||
+        (item.url && item.url.toLowerCase().includes(query))
       );
     }
     return item.parentId === state.currentFolderId;
@@ -549,7 +558,7 @@ function renderGrid() {
 
   // Sort folders first, then by updatedAt descending
   visibleItems.sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+    if ((a.type === 'folder') !== (b.type === 'folder')) return a.type === 'folder' ? -1 : 1;
     return (b.updatedAt || 0) - (a.updatedAt || 0);
   });
 
@@ -603,6 +612,64 @@ function renderGrid() {
               <h3 class="font-bold text-white text-base sm:text-lg leading-snug line-clamp-2 drop-shadow-xs">
                 ${escapeHtml(item.name)}
               </h3>
+            </div>
+          </div>
+        `;
+      }
+
+      if (item.type === 'link') {
+        const menuOpen = state.openMenuFileId === item.id;
+        let hostLabel = '';
+        try {
+          hostLabel = new URL(item.url).hostname.replace(/^www\./, '');
+        } catch {
+          hostLabel = item.url || '';
+        }
+        return `
+          <div class="sn-file-card group" data-open-link="${escapeAttr(item.url)}">
+            <div class="sn-file-preview-wrap flex flex-col items-center justify-center bg-gradient-to-br from-[#182620] via-[#161c24] to-[#1a1a1a] p-4">
+              <div class="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-400/25 text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                <i data-lucide="external-link" class="w-6 h-6"></i>
+              </div>
+              <span class="text-[11px] text-gray-400 truncate max-w-full px-2">${escapeHtml(hostLabel)}</span>
+              <div class="absolute top-2.5 right-2.5 z-20">
+                <button
+                  type="button"
+                  title="More Actions"
+                  data-file-menu="${item.id}"
+                  class="w-8 h-8 rounded-full bg-black/70 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-xs border border-white/15 transition"
+                >
+                  <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                </button>
+                <div class="${menuOpen ? 'flex' : 'hidden'} flex-col w-36 mt-1.5 right-0 absolute rounded-xl bg-[#222222] border border-white/15 shadow-2xl overflow-hidden z-30">
+                  <button
+                    type="button"
+                    data-edit-link="${item.id}"
+                    class="flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-emerald-300 hover:bg-white/10 text-left transition"
+                  >
+                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                    <span>Edit Link</span>
+                  </button>
+                  <button
+                    type="button"
+                    data-delete-item="${item.id}"
+                    class="flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-rose-400 hover:bg-rose-500/20 text-left border-t border-white/5 transition"
+                  >
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </div>
+              <span class="absolute top-2.5 left-2.5 z-10 px-2 py-0.5 rounded-md bg-black/65 backdrop-blur-xs text-[10px] font-semibold text-emerald-300 uppercase tracking-wider">
+                LINK
+              </span>
+            </div>
+            <div class="p-3.5 bg-[#1b1b1b] flex flex-col gap-1">
+              <h3 class="font-semibold text-sm text-gray-100 truncate">${escapeHtml(item.name)}</h3>
+              <div class="flex items-center justify-between text-[11px] text-gray-400">
+                <span>${formatShortDate(item.updatedAt)}</span>
+                <span class="text-emerald-400 font-medium group-hover:underline">Open Link ↗</span>
+              </div>
             </div>
           </div>
         `;
@@ -1048,6 +1115,57 @@ function toggleMobileSidebar(show) {
   }
 }
 
+async function openLinkPrompt(linkId = null) {
+  state.openMenuFileId = null;
+  if (!requireAdminPin()) return;
+
+  const existing = linkId ? state.items.find(i => i.id === linkId && i.type === 'link') : null;
+  const rawUrl = window.prompt('Enter Target URL (e.g. Gemini share link or website):', existing ? existing.url : 'https://');
+  if (!rawUrl || !rawUrl.trim()) return;
+
+  let finalUrl = rawUrl.trim();
+  if (!/^https?:\/\//i.test(finalUrl)) {
+    finalUrl = 'https://' + finalUrl;
+  }
+
+  let defaultTitle = existing ? existing.name : '';
+  const rawTitle = window.prompt('Enter Link Title (leave empty to auto-derive from URL):', defaultTitle);
+  if (rawTitle === null) return;
+
+  let finalTitle = rawTitle.trim();
+  if (!finalTitle) {
+    try {
+      const u = new URL(finalUrl);
+      const host = u.hostname.replace(/^www\./, '');
+      const seg = u.pathname.split('/').filter(Boolean).pop();
+      finalTitle = seg ? `${host} — ${decodeURIComponent(seg)}` : host;
+    } catch {
+      finalTitle = finalUrl;
+    }
+  }
+
+  const now = Date.now();
+  if (existing) {
+    existing.name = finalTitle;
+    existing.url = finalUrl;
+    existing.updatedAt = now;
+  } else {
+    state.items.push({
+      id: 'lnk-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      parentId: state.currentFolderId,
+      type: 'link',
+      name: finalTitle,
+      url: finalUrl,
+      updatedAt: now
+    });
+    if (state.currentFolderId) state.expandedFolders.add(state.currentFolderId);
+  }
+
+  state.updatedAt = now;
+  renderAll();
+  await pushToCloud();
+}
+
 // --- Event Listeners & Initialization ---
 async function initApp() {
   localStorage.setItem('sn_sync_key', state.syncKey);
@@ -1121,6 +1239,14 @@ async function initApp() {
       return;
     }
 
+    const linkRow = e.target.closest('[data-tree-link-url]');
+    if (linkRow) {
+      const url = linkRow.getAttribute('data-tree-link-url');
+      if (url) window.open(url, '_blank', 'noopener,noreferrer');
+      toggleMobileSidebar(false);
+      return;
+    }
+
     const fileRow = e.target.closest('[data-tree-file-id]');
     if (fileRow) {
       const fileId = fileRow.getAttribute('data-tree-file-id');
@@ -1148,7 +1274,7 @@ async function initApp() {
     navigateToFolder(id);
   });
 
-  // Main Grid interactions (open folder, open file, 3-dots menu, edit, delete)
+  // Main Grid interactions (open folder, open file, open link, 3-dots menu, edit, delete)
   document.getElementById('itemsGrid').addEventListener('click', async (e) => {
     const menuBtn = e.target.closest('[data-file-menu]');
     if (menuBtn) {
@@ -1174,6 +1300,13 @@ async function initApp() {
       return;
     }
 
+    const editLinkBtn = e.target.closest('[data-edit-link]');
+    if (editLinkBtn) {
+      e.stopPropagation();
+      await openLinkPrompt(editLinkBtn.getAttribute('data-edit-link'));
+      return;
+    }
+
     const deleteBtn = e.target.closest('[data-delete-item]');
     if (deleteBtn) {
       e.stopPropagation();
@@ -1195,6 +1328,13 @@ async function initApp() {
     if (folderCard) {
       const folderId = folderCard.getAttribute('data-open-folder');
       navigateToFolder(folderId);
+      return;
+    }
+
+    const linkCard = e.target.closest('[data-open-link]');
+    if (linkCard) {
+      const url = linkCard.getAttribute('data-open-link');
+      if (url) window.open(url, '_blank', 'noopener,noreferrer');
       return;
     }
 
@@ -1236,6 +1376,14 @@ async function initApp() {
     toggleFabMenu(false);
     openFileModal(null);
   });
+
+  const fabNewLinkBtn = document.getElementById('fabNewLinkBtn');
+  if (fabNewLinkBtn) {
+    fabNewLinkBtn.addEventListener('click', () => {
+      toggleFabMenu(false);
+      openLinkPrompt(null);
+    });
+  }
 
   document.addEventListener('click', (e) => {
     if (!e.target.closest('#fabMenu') && !e.target.closest('#fabMainBtn')) {
